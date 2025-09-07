@@ -1,5 +1,0 @@
-# System packages for Streamlit Cloud
-# Add system packages here if requirements.txt is not sufficient
-# Example:
-# libgl1-mesa-glx
-# libglib2.0-0
