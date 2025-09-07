@@ -1,0 +1,6 @@
+@echo off
+echo Iniciando o app Extrair ISS...
+echo.
+echo Iniciando o Streamlit...
+streamlit run ENTRADAS.py
+pause
