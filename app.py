@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 st.set_page_config(
-    page_title="Sistema Unificado de Dados Fiscais",
+    page_title="Extração de Dados Fiscais",
     page_icon="🏢",
     layout="wide"
 )
@@ -342,36 +342,17 @@ def extrair_dados_pgdas(pdf_path):
     return [dados_por_arquivo] if any(valor != "Não encontrado" for valor in dados_por_arquivo.values()) else []
 
 def main():
-    st.title("🏢 Sistema Unificado de Dados Fiscais")
+    st.title("Extração de Dados Fiscais")
     st.markdown("---")
     
-    # Sidebar com informações sobre detecção automática
-    st.sidebar.title("🤖 Detecção Automática")
-    st.sidebar.markdown("""
-    **Como funciona:**
     
-    🔍 O sistema analisa o conteúdo de cada PDF e identifica automaticamente:
-    
-    **📊 Relatórios de Entradas:**
-    - Busca por: "Total de Entradas", "Relatório de Entradas"
-    
-    **📋 Documentos PGDAS:**
-    - Busca por: "PGDAS", "Período de Apuração", "IRPJ", "CSLL", etc.
-    
-    **✅ Vantagens:**
-    - Não precisa especificar o tipo
-    - Pode misturar arquivos
-    - Processamento mais rápido
-    - Menos erros de classificação
-    """)
-    
-    # Informações sobre detecção automática
-    st.info("🤖 **Detecção Automática**: O sistema reconhece automaticamente se o PDF é um relatório de Entradas ou documento PGDAS. Apenas faça upload dos arquivos!")
+    # # Informações sobre detecção automática
+    # st.info("🤖 **Detecção Automática**: O sistema reconhece automaticamente se o PDF é um relatório de Entradas ou documento PGDAS. Apenas faça upload dos arquivos!")
     
     # Upload único de arquivos
     st.subheader("📄 Upload de Arquivos")
     uploaded_files = st.file_uploader(
-        "Selecione os arquivos PDF (Entradas ou PGDAS) - O sistema detectará automaticamente o tipo",
+        "Selecione os arquivos PDFs",
         type="pdf",
         accept_multiple_files=True,
         help="Você pode misturar arquivos de Entradas e PGDAS. O sistema reconhecerá cada um automaticamente."
