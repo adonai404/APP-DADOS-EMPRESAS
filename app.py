@@ -6,6 +6,11 @@ import os
 from datetime import datetime
 import openpyxl
 from io import BytesIO
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="Sistema Unificado de Dados Fiscais",
@@ -13,6 +18,7 @@ st.set_page_config(
     layout="wide"
 )
 
+@st.cache_data
 def limpar_valor_monetario(valor_str):
     """
     Converte valor monetário do formato brasileiro para numérico
@@ -69,9 +75,10 @@ def consolidar_dados_empresa(dados_originais):
     
     # Mapear campos originais para os novos nomes
     # Criar colunas com os novos nomes baseados nos campos originais
-    df["entrada"] = df["Total de Entradas"]
-    df["saída"] = df["Receita Bruta Informada"]
-    df["imposto"] = df["Total do Débito Declarado"]
+    # Verificar se as colunas existem antes de acessá-las
+    df["entrada"] = df.get("Total de Entradas", None)
+    df["saída"] = df.get("Receita Bruta Informada", None)
+    df["imposto"] = df.get("Total do Débito Declarado", None)
     
     # Converter campos numéricos para float, tratando valores não numéricos
     def converter_para_float(serie):
@@ -96,7 +103,7 @@ def consolidar_dados_empresa(dados_originais):
     df["entrada"] = converter_para_float(df["entrada"])
     df["saída"] = converter_para_float(df["saída"])
     df["imposto"] = converter_para_float(df["imposto"])
-    df["RBT12"] = converter_para_float(df["RBT12"])
+    df["RBT12"] = converter_para_float(df.get("RBT12", None))
     
     # Consolida somando os valores numéricos
     df_final = df.groupby(["chave", "Empresa_norm", "periodo_consolidado"], as_index=False).agg({
@@ -116,6 +123,9 @@ def consolidar_dados_empresa(dados_originais):
     # Remover a coluna "chave" antes de retornar
     df_final = df_final.drop(columns=["chave"])
     
+    # Adicionar coluna Situação vazia
+    df_final["Situação"] = ""
+    
     # Definir ordem das colunas
     ordem_colunas = [
         "Empresa",
@@ -124,7 +134,8 @@ def consolidar_dados_empresa(dados_originais):
         "RBT12",
         "entrada",
         "saída",
-        "imposto"
+        "imposto",
+        "Situação"
     ]
     
     # Reordenar colunas
@@ -381,60 +392,69 @@ def main():
                 # Atualizar barra de progresso
                 progress_bar.progress((i + 1) / total_files)
                 
-                # Salvar arquivo temporariamente
-                temp_path = f"temp_{uploaded_file.name}"
-                with open(temp_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                
-                # Detectar tipo do documento automaticamente
-                tipo_detectado = detectar_tipo_documento(temp_path)
-                tipos_detectados[uploaded_file.name] = tipo_detectado
-                
-                # Fallback para PGDAS se não identificado
-                if tipo_detectado == "DESCONHECIDO":
-                    tipo_detectado = "PGDAS"
-                
-                # Processar baseado no tipo detectado
-                if tipo_detectado == "ENTRADAS":
-                    dados = extrair_dados_entradas(temp_path)
-                    if dados and dados["Empresa"]:
-                        todos_dados.append(dados)
-                        
-                        # Agrupar por empresa
-                        empresa = dados["Empresa"]
-                        if empresa not in dados_por_empresa:
-                            dados_por_empresa[empresa] = {
-                                'dados_empresa': {
-                                    'CNPJ': dados.get('CNPJ', 'Não encontrado'),
-                                    'Nome_Empresa': empresa
-                                },
-                                'entradas': [],
-                                'pgdas': []
-                            }
-                        dados_por_empresa[empresa]['entradas'].append(dados)
-                
-                elif tipo_detectado == "PGDAS":
-                    dados = extrair_dados_pgdas(temp_path)
-                    for dado in dados:
-                        if dado and dado["Empresa"]:
-                            todos_dados.append(dado)
+                try:
+                    # Salvar arquivo temporariamente
+                    temp_path = f"temp_{uploaded_file.name}"
+                    with open(temp_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    
+                    # Detectar tipo do documento automaticamente
+                    tipo_detectado = detectar_tipo_documento(temp_path)
+                    tipos_detectados[uploaded_file.name] = tipo_detectado
+                    
+                    # Fallback para PGDAS se não identificado
+                    if tipo_detectado == "DESCONHECIDO":
+                        tipo_detectado = "PGDAS"
+                    
+                    # Processar baseado no tipo detectado
+                    if tipo_detectado == "ENTRADAS":
+                        dados = extrair_dados_entradas(temp_path)
+                        if dados and dados["Empresa"]:
+                            todos_dados.append(dados)
                             
                             # Agrupar por empresa
-                            empresa = dado["Empresa"]
+                            empresa = dados["Empresa"]
                             if empresa not in dados_por_empresa:
                                 dados_por_empresa[empresa] = {
                                     'dados_empresa': {
-                                        'CNPJ': dado.get('CNPJ', 'Não encontrado'),
+                                        'CNPJ': dados.get('CNPJ', 'Não encontrado'),
                                         'Nome_Empresa': empresa
                                     },
                                     'entradas': [],
                                     'pgdas': []
                                 }
-                            dados_por_empresa[empresa]['pgdas'].append(dado)
+                            dados_por_empresa[empresa]['entradas'].append(dados)
+                    
+                    elif tipo_detectado == "PGDAS":
+                        dados = extrair_dados_pgdas(temp_path)
+                        for dado in dados:
+                            if dado and dado["Empresa"]:
+                                todos_dados.append(dado)
+                                
+                                # Agrupar por empresa
+                                empresa = dado["Empresa"]
+                                if empresa not in dados_por_empresa:
+                                    dados_por_empresa[empresa] = {
+                                        'dados_empresa': {
+                                            'CNPJ': dado.get('CNPJ', 'Não encontrado'),
+                                            'Nome_Empresa': empresa
+                                        },
+                                        'entradas': [],
+                                        'pgdas': []
+                                    }
+                                dados_por_empresa[empresa]['pgdas'].append(dado)
+                    
+                except Exception as e:
+                    st.error(f"Erro ao processar arquivo {uploaded_file.name}: {str(e)}")
+                    logger.error(f"Erro ao processar {uploaded_file.name}: {str(e)}")
                 
-                # Limpar arquivo temporário
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
+                finally:
+                    # Limpar arquivo temporário
+                    if os.path.exists(temp_path):
+                        try:
+                            os.remove(temp_path)
+                        except:
+                            pass
             
             # Limpar barra de progresso
             progress_bar.empty()

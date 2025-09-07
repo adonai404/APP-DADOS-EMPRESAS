@@ -1,0 +1,7 @@
+# Arquivo packages.txt para Streamlit Cloud
+# Este arquivo é usado quando requirements.txt não é suficiente
+
+# Se precisar de pacotes do sistema, adicione aqui
+# Exemplo:
+# libgl1-mesa-glx
+# libglib2.0-0
